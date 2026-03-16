@@ -1,0 +1,5 @@
+node_modules
+.env
+storage/books/*.pdf
+storage/books/*.jpg
+storage/books/*.png

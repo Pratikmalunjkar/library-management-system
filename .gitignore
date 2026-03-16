@@ -1,0 +1,11 @@
+# Storage files
+backend/storage/books/*.pdf
+backend/storage/books/*.jpg
+backend/storage/books/*.png
+backend/storage/books/*.jpeg
+
+# Environment
+.env
+
+# Node modules
+node_modules/
