@@ -22,7 +22,6 @@ const applyForAuthor = async (userId, data) => {
 
   return result.rows[0];
 };
-
 const getMyAuthorStatus = async (userId) => {
   const result = await pool.query(
     `SELECT * FROM authors WHERE user_id = $1`,
@@ -33,7 +32,19 @@ const getMyAuthorStatus = async (userId) => {
     throw new Error("Author application not found");
   }
 
-  return result.rows[0];
+  const author = result.rows[0];
+
+  // ✅ Auto fix - if approved but user_role not updated
+  if (author.approval_status === 'APPROVED') {
+    await pool.query(
+      `UPDATE users 
+       SET user_role = 'AUTHOR', updated_at = NOW()
+       WHERE id = $1 AND user_role != 'AUTHOR'`,
+      [userId]
+    );
+  }
+
+  return author;
 };
 
 const getPendingAuthors = async () => {
@@ -64,13 +75,18 @@ const approveAuthor = async (authorId) => {
 
   const author = result.rows[0];
 
-  await pool.query(
+  // ✅ Update user_role to AUTHOR
+  const userUpdate = await pool.query(
     `UPDATE users
      SET user_role = 'AUTHOR',
          updated_at = NOW()
-     WHERE id = $1`,
+     WHERE id = $1
+     RETURNING id, email, user_role`,
     [author.user_id]
   );
+
+  // ✅ Debug log to confirm
+  console.log("User role updated:", userUpdate.rows[0]);
 
   return author;
 };
