@@ -287,6 +287,7 @@ See [`backend/SOLID.md`](./backend/SOLID.md) for detailed implementation.
 | SOLID Principles | ✅ |
 | Swagger + Postman | ✅ |
 | Custom CSS Only | ✅ |
+ Deployment on Docker
 
 ---
 
