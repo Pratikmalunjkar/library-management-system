@@ -14,8 +14,10 @@ export const approveAuthor = async (authorId) => {
   return res.data;
 };
 
-export const rejectAuthor = async (authorId) => {
-  const res = await apiClient.patch(`/authors/${authorId}/reject`);
+export const rejectAuthor = async (authorId, rejectionReason) => {
+  const res = await apiClient.patch(`/authors/${authorId}/reject`, {
+    rejection_reason: rejectionReason
+  });
   return res.data;
 };
 
@@ -43,3 +45,4 @@ export const dispatchRental = async (id) => {
 
   return res.data;
 };
+

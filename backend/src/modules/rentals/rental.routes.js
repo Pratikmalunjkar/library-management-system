@@ -23,7 +23,8 @@ const authorizeRoles = require("../../middleware/roleMiddleware");
  *       201:
  *         description: Rental request created
  */
-router.post("/request", authenticate, requestRental);
+router.post("/request", authenticate, authorizeRoles("USER"), requestRental);
+
 
 router.get("/me", authenticate, getUserRentals);
 

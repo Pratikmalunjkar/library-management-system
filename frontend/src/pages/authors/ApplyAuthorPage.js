@@ -28,26 +28,74 @@ function ApplyAuthorPage() {
     checkExistingApplication();
   }, []);
 
-  const handleApply = async () => {
-    try {
-      const formData = new FormData();
-      formData.append("biography", biography);
-      formData.append("qualifications", qualifications);
-      formData.append("experience", experience);
-      if (photo) {
-        formData.append("photo", photo);
-      }
+const handleApply = async () => {
+  if (!biography.trim()) {
+    setMessage("Biography is required");
+    return;
+  }
+  if (!qualifications.trim()) {
+    setMessage("Qualifications are required");
+    return;
+  }
+  if (!experience.trim()) {
+    setMessage("Experience is required");
+    return;
+  }
 
-      const res = await apiClient.post("/authors/apply", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setMessage(res.data.message || "Application submitted");
-      checkExistingApplication(); // ✅ refresh status after apply
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Failed to apply");
+  try {
+    const formData = new FormData();
+    formData.append("biography", biography);
+    formData.append("qualifications", qualifications);
+    formData.append("experience", experience);
+    if (photo) {
+      formData.append("photo", photo);
     }
-  };
+
+    const res = await apiClient.post("/authors/apply", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    setMessage(res.data.message || "Application submitted");
+    checkExistingApplication();
+  } catch (error) {
+    setMessage(error.response?.data?.message || "Failed to apply");
+  }
+};
+
+const handleReApply = async () => {
+  if (!biography.trim()) {
+    setMessage("Biography is required");
+    return;
+  }
+  if (!qualifications.trim()) {
+    setMessage("Qualifications are required");
+    return;
+  }
+  if (!experience.trim()) {
+    setMessage("Experience is required");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("biography", biography);
+    formData.append("qualifications", qualifications);
+    formData.append("experience", experience);
+    if (photo) {
+      formData.append("photo", photo);
+    }
+
+    const res = await apiClient.put("/authors/reapply", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    setMessage(res.data.message || "Application re-submitted successfully");
+    checkExistingApplication();
+  } catch (error) {
+    setMessage(error.response?.data?.message || "Failed to re-apply");
+  }
+};
+
 
   if (loading) {
     return (
@@ -97,12 +145,52 @@ function ApplyAuthorPage() {
               <p>{existingApplication.experience || "N/A"}</p>
             </div>
 
-            {existingApplication.approval_status === "REJECTED" && (
-              <div style={styles.rejectionBox}>
-                <strong>Rejection Reason:</strong>
-                <p>{existingApplication.rejection_reason || "No reason provided"}</p>
-              </div>
-            )}
+          
+          {existingApplication.approval_status === "REJECTED" && (
+  <div>
+    <div style={styles.rejectionBox}>
+      <strong>Rejection Reason:</strong>
+      <p>{existingApplication.rejection_reason || "No reason provided"}</p>
+    </div>
+
+    <p style={styles.pendingNote}>
+      Your application was rejected. You can apply again below.
+    </p>
+
+    {/* ✅ Show apply form again for rejected users */}
+    <div style={{ marginTop: "20px" }}>
+      <textarea
+        placeholder="Biography"
+        value={biography}
+        onChange={(e) => setBiography(e.target.value)}
+        style={styles.textarea}
+      />
+      <input
+        placeholder="Qualifications"
+        value={qualifications}
+        onChange={(e) => setQualifications(e.target.value)}
+        style={styles.input}
+      />
+      <input
+        placeholder="Experience"
+        value={experience}
+        onChange={(e) => setExperience(e.target.value)}
+        style={styles.input}
+      />
+      <label style={styles.label}>Profile Photo</label>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setPhoto(e.target.files[0])}
+        style={styles.input}
+      />
+      <button style={styles.button} onClick={handleReApply}>
+        Re-Apply for Author
+      </button>
+      {message && <p style={styles.message}>{message}</p>}
+    </div>
+  </div>
+)}
 
             {existingApplication.approval_status === "PENDING" && (
               <p style={styles.pendingNote}>

@@ -115,37 +115,34 @@ const rejectAuthor = async (req, res) => {
 
 const submitBook = async (req, res) => {
   try {
-
     const { title, genre, description } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({
-        message: "PDF file is required"
-      });
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ message: "PDF file is required" });
     }
 
-    const pdfKey = `books/${req.file.filename}`;
+    const pdfKey = `books/${req.files.pdf[0].filename}`;
+    const coverKey = req.files.cover
+      ? `covers/${req.files.cover[0].filename}`
+      : null;
 
-    // find author id from user id
     const author = await pool.query(
       "SELECT id FROM authors WHERE user_id = $1",
       [req.user.id]
     );
 
     if (author.rows.length === 0) {
-      return res.status(404).json({
-        message: "Author profile not found"
-      });
+      return res.status(404).json({ message: "Author profile not found" });
     }
 
     const authorId = author.rows[0].id;
 
     const result = await pool.query(
       `INSERT INTO book_submissions
-       (author_id, title, genre, description, manuscript_storage_key)
-       VALUES ($1,$2,$3,$4,$5)
+       (author_id, title, genre, description, manuscript_storage_key, cover_image_url)
+       VALUES ($1,$2,$3,$4,$5,$6)
        RETURNING *`,
-      [authorId, title, genre, description, pdfKey]
+      [authorId, title, genre, description, pdfKey, coverKey]
     );
 
     res.status(201).json({
@@ -154,13 +151,8 @@ const submitBook = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("Submit book error:", error);
-
-    res.status(500).json({
-      message: "Failed to submit book"
-    });
-
+    res.status(500).json({ message: "Failed to submit book" });
   }
 };
 

@@ -86,6 +86,7 @@ function BooksPage() {
       <div style={styles.page}>
         <h2>Books Catalog</h2>
 
+        {/* Controls */}
         <div style={styles.controls}>
           <input
             type="text"
@@ -125,6 +126,7 @@ function BooksPage() {
           </button>
         </div>
 
+        {/* Books Grid */}
         {loading ? (
           <p>Loading books...</p>
         ) : (
@@ -135,6 +137,20 @@ function BooksPage() {
                 style={styles.card}
                 onClick={() => navigate(`/books/${book.id}`)}
               >
+                {/* ✅ Cover image */}
+                {book.cover_image_url ? (
+                  <img
+                    src={`http://localhost:5000/${book.cover_image_url}`}
+                    alt={book.title}
+                    style={styles.coverImage}
+                    onError={(e) => { e.target.style.display = "none"; }}
+                  />
+                ) : (
+                  <div style={styles.noCover}>
+                    <span>No Cover</span>
+                  </div>
+                )}
+
                 <h3>{book.title}</h3>
                 <p>Genre: {book.genre}</p>
                 <p>Rating: {book.avg_rating || "N/A"}</p>
@@ -195,6 +211,25 @@ const styles = {
     backgroundColor: "#fff",
     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
     cursor: "pointer",
+  },
+  coverImage: {
+    width: "100%",
+    height: "200px",
+    objectFit: "cover",
+    borderRadius: "6px",
+    marginBottom: "10px",
+  },
+  noCover: {
+    width: "100%",
+    height: "200px",
+    backgroundColor: "#e5e7eb",
+    borderRadius: "6px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "10px",
+    color: "#9ca3af",
+    fontSize: "14px",
   },
   viewText: {
     marginTop: "10px",

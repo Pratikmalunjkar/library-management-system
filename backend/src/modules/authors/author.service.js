@@ -1,4 +1,6 @@
 const pool = require("../../config/db");
+const { extractCoverFromPdf } = require("../../utils/extractCover");
+const path = require("path");
 
 const applyForAuthor = async (userId, data) => {
   const { biography, qualifications, experience, profile_photo_url } = data;
@@ -22,6 +24,7 @@ const applyForAuthor = async (userId, data) => {
 
   return result.rows[0];
 };
+
 const getMyAuthorStatus = async (userId) => {
   const result = await pool.query(
     `SELECT * FROM authors WHERE user_id = $1`,
@@ -85,7 +88,6 @@ const approveAuthor = async (authorId) => {
     [author.user_id]
   );
 
-  // ✅ Debug log to confirm
   console.log("User role updated:", userUpdate.rows[0]);
 
   return author;
@@ -105,6 +107,15 @@ const rejectAuthor = async (authorId, rejectionReason) => {
   if (result.rows.length === 0) {
     throw new Error("Author not found");
   }
+
+  // ✅ Reset user_role back to USER when rejected
+  await pool.query(
+    `UPDATE users
+     SET user_role = 'USER',
+         updated_at = NOW()
+     WHERE id = (SELECT user_id FROM authors WHERE id = $1)`,
+    [authorId]
+  );
 
   return result.rows[0];
 };
@@ -240,10 +251,10 @@ const getAuthorMetrics = async (userId) => {
     total_reviews: Number(reviewsResult.rows[0].total_reviews),
   };
 };
+
 const updateSubmission = async (userId, submissionId, data) => {
   const authorResult = await pool.query(
-    `SELECT * FROM authors
-     WHERE user_id = $1`,
+    `SELECT * FROM authors WHERE user_id = $1`,
     [userId]
   );
 
@@ -308,8 +319,7 @@ const updateSubmission = async (userId, submissionId, data) => {
 
 const approveSubmission = async (submissionId) => {
   const submissionResult = await pool.query(
-    `SELECT * FROM book_submissions
-     WHERE id = $1`,
+    `SELECT * FROM book_submissions WHERE id = $1`,
     [submissionId]
   );
 
@@ -323,19 +333,34 @@ const approveSubmission = async (submissionId) => {
     throw new Error("Only pending submissions can be approved");
   }
 
+  // ✅ Auto extract cover from PDF first page
+  let cover_image_url = submission.cover_image_url || null;
+  try {
+    const pdfFileName = submission.manuscript_storage_key.replace("books/", "");
+    const pdfFullPath = path.join(process.cwd(), "storage/books", pdfFileName);
+    const coverFileName = `cover-${Date.now()}.jpg`;
+    const extractedCover = await extractCoverFromPdf(pdfFullPath, coverFileName);
+    if (extractedCover) {
+      cover_image_url = extractedCover;
+    }
+  } catch (err) {
+    console.error("Cover extraction failed:", err);
+  }
+
   const bookResult = await pool.query(
-  `INSERT INTO books
-   (title, author_id, genre, description, pdf_storage_key, total_copies, available_copies)
-   VALUES ($1,$2,$3,$4,$5,1,1)
-   RETURNING *`,
-  [
-    submission.title,
-    submission.author_id,
-    submission.genre,
-    submission.description,
-    submission.manuscript_storage_key
-  ]
-);
+    `INSERT INTO books
+     (title, author_id, genre, description, pdf_storage_key, cover_image_url, total_copies, available_copies)
+     VALUES ($1,$2,$3,$4,$5,$6,1,1)
+     RETURNING *`,
+    [
+      submission.title,
+      submission.author_id,
+      submission.genre,
+      submission.description,
+      submission.manuscript_storage_key,
+      cover_image_url
+    ]
+  );
 
   const updatedSubmission = await pool.query(
     `UPDATE book_submissions

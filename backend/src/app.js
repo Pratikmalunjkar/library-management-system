@@ -37,6 +37,11 @@ app.get("/health", (req, res) => {
   });
 });
 
+
+const path = require("path");
+
+// ✅ Serve cover images statically
+app.use("/covers", express.static(path.join(__dirname, "../storage/covers")));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);

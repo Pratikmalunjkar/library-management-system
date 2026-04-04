@@ -14,6 +14,8 @@ function AdminBooksPage() {
     total_copies: 1, available_copies: 1
   });
   const [pdfFile, setPdfFile] = useState(null);
+ 
+  const [editCoverFile, setEditCoverFile] = useState(null);
   const [message, setMessage] = useState("");
 
   const fetchBooks = async () => {
@@ -26,13 +28,23 @@ function AdminBooksPage() {
   const handleEdit = (book) => {
     setEditingBook(book.id);
     setForm({ ...book });
+    setShowAddForm(false); // ✅ close add form if open
   };
 
   const handleUpdate = async () => {
     try {
+      if (editCoverFile) {
+        const coverData = new FormData();
+        coverData.append("cover", editCoverFile);
+        coverData.append("book_id", editingBook);
+        await apiClient.post("/books/update-cover", coverData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+      }
       await updateBook(editingBook, form);
       setMessage("Book updated successfully");
       setEditingBook(null);
+      setEditCoverFile(null);
       fetchBooks();
     } catch (err) {
       setMessage("Failed to update book");
@@ -52,12 +64,10 @@ function AdminBooksPage() {
 
   const handleAddBook = async () => {
     try {
-      if (!pdfFile) {
-        setMessage("Please upload a PDF file");
-        return;
-      }
+      if (!newBook.title.trim()) { setMessage("Title is required"); return; }
+      if (!newBook.genre.trim()) { setMessage("Genre is required"); return; }
+      if (!pdfFile) { setMessage("Please upload a PDF file"); return; }
 
-      // ✅ Use FormData to upload PDF + book data together
       const formData = new FormData();
       formData.append("title", newBook.title);
       formData.append("genre", newBook.genre);
@@ -67,6 +77,7 @@ function AdminBooksPage() {
       formData.append("total_copies", newBook.total_copies);
       formData.append("available_copies", newBook.available_copies);
       formData.append("pdf", pdfFile);
+    
 
       await apiClient.post("/books/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" }
@@ -74,11 +85,7 @@ function AdminBooksPage() {
 
       setMessage("Book added successfully");
       setShowAddForm(false);
-      setNewBook({
-        title: "", genre: "", description: "",
-        isbn: "", author_name: "",
-        total_copies: 1, available_copies: 1
-      });
+      setNewBook({ title: "", genre: "", description: "", isbn: "", author_name: "", total_copies: 1, available_copies: 1 });
       setPdfFile(null);
       fetchBooks();
     } catch (err) {
@@ -93,14 +100,76 @@ function AdminBooksPage() {
         <h2>Manage Books</h2>
         {message && <p style={styles.message}>{message}</p>}
 
-        <button style={styles.addBtn} onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? "Cancel" : "+ Add New Book"}
-        </button>
+        {/* ✅ Edit Form */}
+        {editingBook && (
+          <div style={styles.formBox}>
+            <h3>Edit Book</h3>
+            {["title", "genre", "description", "isbn", "author_name"].map(field => (
+              <input
+                key={field}
+                placeholder={field.replace("_", " ")}
+                value={form[field] || ""}
+                onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                style={styles.input}
+              />
+            ))}
+            <input
+              type="number"
+              placeholder="Total Copies"
+              value={form.total_copies || ""}
+              onChange={(e) => setForm({ ...form, total_copies: e.target.value })}
+              style={styles.input}
+            />
+            <input
+              type="number"
+              placeholder="Available Copies"
+              value={form.available_copies || ""}
+              onChange={(e) => setForm({ ...form, available_copies: e.target.value })}
+              style={styles.input}
+            />
 
-        {showAddForm && (
+            {/* ✅ Cover image update */}
+            <label style={styles.label}>Update Cover Image (optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setEditCoverFile(e.target.files[0])}
+              style={styles.input}
+            />
+            {editCoverFile && (
+              <p style={styles.fileSelected}>✅ Selected: {editCoverFile.name}</p>
+            )}
+
+            {/* ✅ Show current cover if exists */}
+            {form.cover_image_url && !editCoverFile && (
+              <img
+                src={`http://localhost:5000/${form.cover_image_url}`}
+                alt="Current cover"
+                style={styles.currentCover}
+              />
+            )}
+
+            <div style={{ marginTop: "12px" }}>
+              <button style={styles.saveBtn} onClick={handleUpdate}>Save Changes</button>
+              <button style={styles.cancelBtn} onClick={() => {
+                setEditingBook(null);
+                setEditCoverFile(null);
+              }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Add Book Button */}
+        {!editingBook && (
+          <button style={styles.addBtn} onClick={() => setShowAddForm(!showAddForm)}>
+            {showAddForm ? "Cancel" : "+ Add New Book"}
+          </button>
+        )}
+
+        {/* ✅ Add Book Form */}
+        {showAddForm && !editingBook && (
           <div style={styles.formBox}>
             <h3>Add New Book</h3>
-
             <input
               placeholder="Title *"
               value={newBook.title}
@@ -145,8 +214,6 @@ function AdminBooksPage() {
               onChange={(e) => setNewBook({ ...newBook, available_copies: e.target.value })}
               style={styles.input}
             />
-
-            {/* ✅ PDF Upload */}
             <label style={styles.label}>Upload PDF *</label>
             <input
               type="file"
@@ -154,60 +221,35 @@ function AdminBooksPage() {
               onChange={(e) => setPdfFile(e.target.files[0])}
               style={styles.input}
             />
-            {pdfFile && (
-              <p style={styles.fileSelected}>
-                ✅ Selected: {pdfFile.name}
-              </p>
-            )}
+            {pdfFile && <p style={styles.fileSelected}>✅ Selected: {pdfFile.name}</p>}
 
-            <button style={styles.saveBtn} onClick={handleAddBook}>
-              Add Book
-            </button>
+           
+
+            <button style={styles.saveBtn} onClick={handleAddBook}>Add Book</button>
           </div>
         )}
 
+        {/* ✅ Books Grid */}
         <div style={styles.grid}>
           {books.map((book) => (
             <div key={book.id} style={styles.card}>
-              {editingBook === book.id ? (
-                <>
-                  {["title", "genre", "description", "isbn", "author_name"].map(field => (
-                    <input
-                      key={field}
-                      placeholder={field}
-                      value={form[field] || ""}
-                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                      style={styles.input}
-                    />
-                  ))}
-                  <input
-                    type="number"
-                    placeholder="Total Copies"
-                    value={form.total_copies || ""}
-                    onChange={(e) => setForm({ ...form, total_copies: e.target.value })}
-                    style={styles.input}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Available Copies"
-                    value={form.available_copies || ""}
-                    onChange={(e) => setForm({ ...form, available_copies: e.target.value })}
-                    style={styles.input}
-                  />
-                  <button style={styles.saveBtn} onClick={handleUpdate}>Save</button>
-                  <button style={styles.cancelBtn} onClick={() => setEditingBook(null)}>Cancel</button>
-                </>
+              {book.cover_image_url ? (
+                <img
+                  src={`http://localhost:5000/${book.cover_image_url}`}
+                  alt={book.title}
+                  style={styles.coverImage}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
               ) : (
-                <>
-                  <h3>{book.title}</h3>
-                  <p>Genre: {book.genre}</p>
-                  <p>Author: {book.author_name || "N/A"}</p>
-                  <p>Copies: {book.available_copies}/{book.total_copies}</p>
-                  <p>Rating: {book.avg_rating || "N/A"}</p>
-                  <button style={styles.editBtn} onClick={() => handleEdit(book)}>Edit</button>
-                  <button style={styles.deleteBtn} onClick={() => handleDelete(book.id)}>Delete</button>
-                </>
+                <div style={styles.noCover}>No Cover</div>
               )}
+              <h3>{book.title}</h3>
+              <p>Genre: {book.genre}</p>
+              <p>Author: {book.author_name || "N/A"}</p>
+              <p>Copies: {book.available_copies}/{book.total_copies}</p>
+              <p>Rating: {book.avg_rating || "N/A"}</p>
+              <button style={styles.editBtn} onClick={() => handleEdit(book)}>Edit</button>
+              <button style={styles.deleteBtn} onClick={() => handleDelete(book.id)}>Delete</button>
             </div>
           ))}
         </div>
@@ -231,6 +273,9 @@ const styles = {
   deleteBtn: { marginTop: "10px", padding: "8px 12px", backgroundColor: "#dc3545", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
   saveBtn: { marginTop: "10px", marginRight: "8px", padding: "8px 12px", backgroundColor: "#198754", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
   cancelBtn: { marginTop: "10px", padding: "8px 12px", backgroundColor: "#6c757d", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
+  coverImage: { width: "100%", height: "180px", objectFit: "cover", borderRadius: "6px", marginBottom: "10px" },
+  noCover: { width: "100%", height: "180px", backgroundColor: "#e5e7eb", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px", color: "#9ca3af", fontSize: "14px" },
+  currentCover: { width: "100px", height: "140px", objectFit: "cover", borderRadius: "6px", marginTop: "8px" },
 };
 
 export default AdminBooksPage;
